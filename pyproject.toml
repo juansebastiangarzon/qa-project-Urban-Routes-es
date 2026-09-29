@@ -1,0 +1,8 @@
+[project]
+name = "qa-project-urban-routes-es"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "pytest>=9.1.1",
+    "selenium>=4.49.0",
+]
