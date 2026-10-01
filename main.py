@@ -196,27 +196,27 @@ class TestUrbanRoutes:
 
     @classmethod
     def setup_class(cls):
-        # no lo modifiques, ya que necesitamos un registro adicional habilitado para recuperar el código de confirmación del teléfono
-
-        # necesitamos los registros de Chrome para recuperar el código de confirmación del teléfono
         from selenium.webdriver.chrome.options import Options
+
         options = Options()
         options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
         cls.driver = webdriver.Chrome(options=options)
-        # necesitamos los registros de Chrome para recuperar el código de confirmación del teléfono
 
-    def test_set_route(self):
+    def open_urban_routes(self):
         self.driver.get(data.urban_routes_url)
-        routes_page = UrbanRoutesPage(self.driver)
+        return UrbanRoutesPage(self.driver)
 
-        address_from = data.address_from
-        address_to = data.address_to
-        routes_page.set_route(address_from, address_to)
-        assert routes_page.get_from() == address_from
-        assert routes_page.get_to() == address_to
+    def prepare_comfort(self):
+        routes_page = self.open_urban_routes()
 
+        routes_page.set_route(data.address_from, data.address_to)
         routes_page.click_order_taxi()
         routes_page.select_comfort()
+
+        return routes_page
+
+    def prepare_phone(self):
+        routes_page = self.prepare_comfort()
 
         routes_page.click_phone_button()
         routes_page.set_phone(data.phone_number)
@@ -224,14 +224,76 @@ class TestUrbanRoutes:
         routes_page.set_phone_code()
         routes_page.confirm_phone()
 
+        return routes_page
+
+    def prepare_card(self):
+
+        routes_page = self.prepare_phone()
         routes_page.click_payment_method()
         routes_page.click_add_card()
-
         routes_page.set_card_number(data.card_number)
         routes_page.set_card_code(data.card_code)
-
         routes_page.click_confirm_add_card()
         routes_page.close_card_modal()
+
+        return routes_page
+
+    def test_set_route(self):
+        routes_page = self.open_urban_routes()
+
+        routes_page.set_route(data.address_from, data.address_to)
+
+        assert routes_page.get_from() == data.address_from
+        assert routes_page.get_to() == data.address_to
+
+    def test_select_comfort(self):
+        routes_page = self.prepare_comfort()
+
+        element = routes_page.driver.find_element(*routes_page.comfort_tariff)
+
+        assert 'active' in element.get_attribute('class')
+
+    def test_add_phone(self):
+        routes_page = self.prepare_phone()
+
+        phone = routes_page.driver.find_element(By.CLASS_NAME, 'np-text')
+
+        assert phone.text == data.phone_number
+
+    def test_add_card(self):
+        routes_page = self.prepare_card()
+
+        payment_method = routes_page.driver.find_element(By.CLASS_NAME, 'pp-value-text')
+
+        assert payment_method.text == 'Tarjeta'
+
+    def test_set_message(self):
+        routes_page = self.prepare_card()
+
+        routes_page.set_message(data.message_for_driver)
+
+        message = routes_page.driver.find_element(*routes_page.message_field).get_attribute('value')
+
+        assert message == data.message_for_driver
+
+    def test_select_blanket_tissues(self):
+        routes_page = self.prepare_card()
+        routes_page.select_blanket_tissues()
+
+        switch = routes_page.driver.find_element(By.XPATH, "//div[contains(@class, 'r-type-switch')][.//div[text()='Manta y pañuelos']]//input")
+
+        assert switch.is_selected()
+
+    def test_add_two_ice_creams(self):
+        routes_page = self.prepare_card()
+
+        routes_page.add_ice_cream()
+        routes_page.add_ice_cream()
+
+        assert routes_page.get_ice_cream_count() == '2'
+
+    def test_search_car(self):
+        routes_page = self.prepare_card()
 
         routes_page.set_message(data.message_for_driver)
         routes_page.select_blanket_tissues()
@@ -239,11 +301,20 @@ class TestUrbanRoutes:
         routes_page.add_ice_cream()
         routes_page.add_ice_cream()
 
-        assert routes_page.get_ice_cream_count() == '2'
-
         routes_page.click_reserve_taxi()
 
         assert routes_page.get_search_car_title() == 'Buscar automóvil'
+
+    def test_driver_car_number(self):
+        routes_page = self.prepare_card()
+
+        routes_page.set_message(data.message_for_driver)
+        routes_page.select_blanket_tissues()
+
+        routes_page.add_ice_cream()
+        routes_page.add_ice_cream()
+
+        routes_page.click_reserve_taxi()
 
         assert routes_page.get_driver_car_number() != ''
 
